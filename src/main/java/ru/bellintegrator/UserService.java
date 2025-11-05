@@ -1,9 +1,9 @@
 package ru.bellintegrator;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class UserService {
@@ -19,24 +19,30 @@ public class UserService {
 //            new User(UUID.fromString("123e4567-e89b-12d3-a456-426614174002"), "Алексей", "Сидоров", 28)
 //    );
 
-    private final Map<UUID, User>  userMap;
+    private final UserRepository userRepository;
 
-    public UserService() {
-        userMap = new HashMap<>();
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     };
-
 
     public User getUserById(
             UUID id
     ) {
-        if (!userMap.containsKey(id)) {
-            throw new NoSuchElementException("Not found user by id = " + id);
-        }
-        return userMap.get(id);
+        UserEntity userEntity = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Not found user by id = " + id
+                ));
+
+        return toDomainUser(userEntity);
     }
 
     public List<User> getAllUsers() {
-        return userMap.values().stream().toList();
+
+        List<UserEntity> allEntities = userRepository.findAll();
+
+        return allEntities.stream()
+                .map(this::toDomainUser)
+                .toList();
     }
 
     public User createUser(
@@ -45,40 +51,53 @@ public class UserService {
         if (userToCreate.id() != null) {
             throw new IllegalArgumentException("Id should be empty");
         }
-        var newUser = new User(
-                UUID.randomUUID(),
+        var newUserEntity = userRepository.save(
+                new UserEntity(
+                null,
                 userToCreate.firstname(),
                 userToCreate.lastname(),
                 userToCreate.age()
-        );
-        userMap.put(newUser.id(), newUser);
-        return newUser;
+        ));
+
+        return toDomainUser(newUserEntity);
     }
 
     public User updateUserById(
             UUID id,
             User userToUpdate
     ) {
-        if (!userMap.containsKey(id)) {
-            throw new NoSuchElementException("Not found user by id = " + id);
-        }
-        var user = userMap.get(id);
-        var updatedUser = new User(
-                user.id(),
+
+        var userEntity = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Not found user by id = " + id));
+
+        var updatedUserEntity = userRepository.save(new UserEntity(
+                userEntity.getId(),
                 userToUpdate.firstname(),
                 userToUpdate.lastname(),
                 userToUpdate.age()
-        );
-        userMap.put(user.id(), updatedUser);
-        return updatedUser;
+        ));
+
+        return toDomainUser(updatedUserEntity);
     }
 
     public void deleteUserById(
             UUID id
     ) {
-        if (!userMap.containsKey(id)) {
-            throw new NoSuchElementException("Not found user by id = " + id);
+        if (!userRepository.existsById(id)) {
+            throw new EntityNotFoundException("Not found user by id = " + id);
         }
-        userMap.remove(id);
+
+        userRepository.deleteById(id);
+    }
+
+    private User toDomainUser(
+            UserEntity userEntity
+    ) {
+        return new User(
+                userEntity.getId(),
+                userEntity.getFirstname(),
+                userEntity.getLastname(),
+                userEntity.getAge()
+        );
     }
 }

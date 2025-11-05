@@ -23,10 +23,10 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(
+    public ResponseEntity<User> getById(
             @PathVariable("id") UUID id
     ) {
-        log.info("Called getUserById: id={}", id);
+        log.info("Called getById: id={}", id);
 //        return userService.getUserById(id);
         try {
             return ResponseEntity.status(HttpStatus.OK)
@@ -38,18 +38,18 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<User>> getaAllTasks() {
-        log.info("Called getAllUsers");
+    public ResponseEntity<List<User>> getaAll() {
+        log.info("Called getAll");
 //        return userService.getAllUsers();
         return ResponseEntity.status(HttpStatus.OK)
                 .body(userService.getAllUsers());
     }
 
     @PostMapping
-    public ResponseEntity<User> createUser(
+    public ResponseEntity<User> create(
             @RequestBody User userToCreate
     ) {
-        log.info("Called createUser");
+        log.info("Called create");
 //        return userService.createUser(userToCreate);
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -62,21 +62,21 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUserById(
+    public ResponseEntity<User> update(
             @PathVariable("id") UUID id,
             @RequestBody User userToUpdate
     ) {
-        log.info("Called updateUserById: id={} , userToUpdate={}",
+        log.info("Called update: id={} , userToUpdate={}",
                 id, userToUpdate);
         var updated = userService.updateUserById(id, userToUpdate);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUserById(
+    public ResponseEntity<Void> deleteById(
             @PathVariable("id") UUID id
     ) {
-        log.info("Called deleteUserById: id={}", id);
+        log.info("Called deleteById: id={}", id);
         try {
             userService.deleteUserById(id);
             return ResponseEntity.status(HttpStatus.OK)
