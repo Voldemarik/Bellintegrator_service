@@ -1,10 +1,12 @@
 package ru.bellintegrator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -26,11 +28,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final UserMapper userMapper;
+    private final KafkaTemplate<String, UserEvent> kafkaTemplate;
 
-    public UserService(UserRepository userRepository, ObjectMapper objectMapper, UserMapper userMapper) {
+    private static final String USER_EVENTS = "user-events";
+
+    public UserService(UserRepository userRepository, ObjectMapper objectMapper, UserMapper userMapper, KafkaTemplate<String, UserEvent> kafkaTemplate) {
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.userMapper = userMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public User getUserById(
@@ -87,6 +93,7 @@ public class UserService {
         return new PageImpl<>(userPageWithFilters, pageable, userEntityPageWithFilters.getTotalElements());
     }
 
+    @Transactional
     public User createUser(
             User userToCreate
     ) {
@@ -105,9 +112,16 @@ public class UserService {
         UserEntity newUserEntity = userMapper.toUserEntity(userToCreate);
         newUserEntity.setId(null);
 
-        return toDomainUser(userRepository.save(newUserEntity));
+        UserEntity savedEntity = userRepository.save(newUserEntity);
+        User savedUser = toDomainUser(savedEntity);
+
+        UserEvent event = new UserEvent("CREATE", savedUser);
+        kafkaTemplate.send(USER_EVENTS, savedUser.id().toString(), event);
+
+        return savedUser;
     }
 
+    @Transactional
     public User updateUserById(
             UUID id,
             User userToUpdate
@@ -119,9 +133,16 @@ public class UserService {
         UserEntity updatedUserEntity = userMapper.toUserEntity(userToUpdate);
         updatedUserEntity.setId(id);
 
-        return toDomainUser(userRepository.save(updatedUserEntity));
+        UserEntity savedEntity = userRepository.save(updatedUserEntity);
+        User updatedUser = toDomainUser(savedEntity);
+
+        UserEvent event = new UserEvent("UPDATE", updatedUser);
+        kafkaTemplate.send(USER_EVENTS, updatedUser.id().toString(), event);
+
+        return updatedUser;
     }
 
+    @Transactional
     public void deleteUserById(
             UUID id
     ) {
@@ -129,7 +150,12 @@ public class UserService {
             throw new NoSuchElementException("Not found user by id = " + id);
         }
 
+        User userToDelete = getUserById(id);
+
         userRepository.deleteById(id);
+
+        UserEvent event = new UserEvent("DELETE", userToDelete);
+        kafkaTemplate.send(USER_EVENTS, userToDelete.id().toString(), event);
     }
 
     private User toDomainUser(
