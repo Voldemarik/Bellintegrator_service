@@ -1,6 +1,10 @@
 package ru.bellintegrator;
 
-import jakarta.persistence.EntityNotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -20,18 +24,24 @@ public class UserService {
 //    );
 
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
+    private final UserMapper userMapper;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, ObjectMapper objectMapper, UserMapper userMapper) {
         this.userRepository = userRepository;
-    };
+        this.objectMapper = objectMapper;
+        this.userMapper = userMapper;
+    }
 
     public User getUserById(
             UUID id
     ) {
         UserEntity userEntity = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new NoSuchElementException(
                         "Not found user by id = " + id
                 ));
+
+//        return toDomainUser(userEntity);
 
         return toDomainUser(userEntity);
     }
@@ -45,46 +55,78 @@ public class UserService {
                 .toList();
     }
 
+    public Page<User> getAllUsers(
+            Pageable pageable
+    ) {
+        Page<UserEntity> userEntityPage = userRepository.findAll(pageable);
+
+        List<User> userPage = userEntityPage.getContent().stream()
+                .map(this::toDomainUser)
+                .toList();
+
+        return new PageImpl<>(userPage, pageable, userEntityPage.getTotalElements());
+    }
+
+    public Page<User> getAllUsersWithFilters(
+            UserFilter userFilter
+    ) {
+        Pageable pageable = PageRequest.of(userFilter.getPage(), userFilter.getSize());
+
+        Page<UserEntity> userEntityPageWithFilters = userRepository.findByFilters(
+                userFilter.getFirstname(),
+                userFilter.getLastname(),
+                userFilter.getMinAge(),
+                userFilter.getMaxAge(),
+                pageable
+        );
+
+        List<User> userPageWithFilters = userEntityPageWithFilters.getContent().stream()
+                .map(this::toDomainUser)
+                .toList();
+
+        return new PageImpl<>(userPageWithFilters, pageable, userEntityPageWithFilters.getTotalElements());
+    }
+
     public User createUser(
             User userToCreate
     ) {
         if (userToCreate.id() != null) {
             throw new IllegalArgumentException("Id should be empty");
         }
-        var newUserEntity = userRepository.save(
-                new UserEntity(
-                null,
-                userToCreate.firstname(),
-                userToCreate.lastname(),
-                userToCreate.age()
-        ));
 
-        return toDomainUser(newUserEntity);
+//        UserEntity newUserEntity = userRepository.save(
+//                new UserEntity(
+//                null,
+//                userToCreate.firstname(),
+//                userToCreate.lastname(),
+//                userToCreate.age()
+//        ));
+
+        UserEntity newUserEntity = userMapper.toUserEntity(userToCreate);
+        newUserEntity.setId(null);
+
+        return toDomainUser(userRepository.save(newUserEntity));
     }
 
     public User updateUserById(
             UUID id,
             User userToUpdate
     ) {
+        if (!userRepository.existsById(id)) {
+            throw new NoSuchElementException("Not found user by id = " + id);
+        }
 
-        var userEntity = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Not found user by id = " + id));
+        UserEntity updatedUserEntity = userMapper.toUserEntity(userToUpdate);
+        updatedUserEntity.setId(id);
 
-        var updatedUserEntity = userRepository.save(new UserEntity(
-                userEntity.getId(),
-                userToUpdate.firstname(),
-                userToUpdate.lastname(),
-                userToUpdate.age()
-        ));
-
-        return toDomainUser(updatedUserEntity);
+        return toDomainUser(userRepository.save(updatedUserEntity));
     }
 
     public void deleteUserById(
             UUID id
     ) {
         if (!userRepository.existsById(id)) {
-            throw new EntityNotFoundException("Not found user by id = " + id);
+            throw new NoSuchElementException("Not found user by id = " + id);
         }
 
         userRepository.deleteById(id);
@@ -93,11 +135,13 @@ public class UserService {
     private User toDomainUser(
             UserEntity userEntity
     ) {
-        return new User(
-                userEntity.getId(),
-                userEntity.getFirstname(),
-                userEntity.getLastname(),
-                userEntity.getAge()
-        );
+//        return new User(
+//                userEntity.getId(),
+//                userEntity.getFirstname(),
+//                userEntity.getLastname(),
+//                userEntity.getAge()
+//        );
+
+        return objectMapper.convertValue(userEntity, User.class);
     }
 }
