@@ -2,6 +2,9 @@ package ru.bellintegrator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -28,9 +31,12 @@ public class UserService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final UserMapper userMapper;
-    private final KafkaTemplate<String, UserEvent> kafkaTemplate;
 
+    private final KafkaTemplate<String, UserEvent> kafkaTemplate;
     private static final String USER_EVENTS = "user-events";
+
+    private static final String USERS_CACHE = "users";
+    private static final String USER_BY_ID_CACHE = "user";
 
     public UserService(UserRepository userRepository, ObjectMapper objectMapper, UserMapper userMapper, KafkaTemplate<String, UserEvent> kafkaTemplate) {
         this.userRepository = userRepository;
@@ -39,6 +45,10 @@ public class UserService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    @Cacheable(
+            value = USER_BY_ID_CACHE,
+            key = "#id"
+    )
     public User getUserById(
             UUID id
     ) {
@@ -47,11 +57,13 @@ public class UserService {
                         "Not found user by id = " + id
                 ));
 
-//        return toDomainUser(userEntity);
-
         return toDomainUser(userEntity);
     }
 
+    @Cacheable(
+            value = USERS_CACHE,
+            key = "'all'"
+    )
     public List<User> getAllUsers() {
 
         List<UserEntity> allEntities = userRepository.findAll();
@@ -93,6 +105,12 @@ public class UserService {
         return new PageImpl<>(userPageWithFilters, pageable, userEntityPageWithFilters.getTotalElements());
     }
 
+    @Caching(
+            evict = {
+                    @CacheEvict(value = USERS_CACHE, key = "'all'"),
+                    @CacheEvict(value = USER_BY_ID_CACHE, key = "#result.id()")
+            }
+    )
     @Transactional
     public User createUser(
             User userToCreate
@@ -121,6 +139,12 @@ public class UserService {
         return savedUser;
     }
 
+    @Caching(
+            evict = {
+                    @CacheEvict(value = USERS_CACHE, key = "'all'"),
+                    @CacheEvict(value = USER_BY_ID_CACHE, key = "#id")
+            }
+    )
     @Transactional
     public User updateUserById(
             UUID id,
@@ -139,19 +163,33 @@ public class UserService {
         UserEvent event = new UserEvent("UPDATE", updatedUser);
         kafkaTemplate.send(USER_EVENTS, updatedUser.id().toString(), event);
 
+        System.out.println();
+
         return updatedUser;
     }
 
+    @Caching(
+            evict = {
+                    @CacheEvict(value = USERS_CACHE, key = "'all'"),
+                    @CacheEvict(value = USER_BY_ID_CACHE, key = "#id")
+            }
+    )
     @Transactional
     public void deleteUserById(
             UUID id
     ) {
-        if (!userRepository.existsById(id)) {
-            throw new NoSuchElementException("Not found user by id = " + id);
-        }
+//        if (!userRepository.existsById(id)) {
+//            throw new NoSuchElementException("Not found user by id = " + id);
+//        }
 
-        User userToDelete = getUserById(id);
+        UserEntity userEntity = userRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Not found user by id = " + id
+                ));
 
+//        User userToDelete = getUserById(id);
+
+        User userToDelete = toDomainUser(userEntity);
         userRepository.deleteById(id);
 
         UserEvent event = new UserEvent("DELETE", userToDelete);

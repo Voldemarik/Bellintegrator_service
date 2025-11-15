@@ -13,6 +13,17 @@ services:
     networks:
       - user-service-network
 
+  redis:
+    image: redis:alpine
+    container_name: user-service-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - user-service-network
+
   kafka:
     image: apache/kafka:3.7.0
     container_name: user-service-kafka
@@ -44,16 +55,21 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_CACHE_TYPE: redis
     ports:
       - "8080:8080"
     depends_on:
       - postgres
+      - redis
       - kafka
     networks:
       - user-service-network
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   user-service-network:
