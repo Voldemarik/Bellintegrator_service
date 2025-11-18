@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 
 @Getter
+//DTO используется для пагинации
 public class PageResponse<T> {
 
     private final List<T> content;

@@ -8,9 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/users")
@@ -106,8 +104,13 @@ public class UserController {
         log.info("Called update: id={} , userToUpdate={}",
                 id, userToUpdate);
 
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(userService.updateUserById(id, userToUpdate));
+        try {
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(userService.updateUserById(id, userToUpdate));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .build();
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -118,7 +121,7 @@ public class UserController {
 
         try {
             userService.deleteUserById(id);
-            return ResponseEntity.status(HttpStatus.OK)
+            return ResponseEntity.status(HttpStatus.NO_CONTENT)
                     .build();
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

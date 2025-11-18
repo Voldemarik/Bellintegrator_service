@@ -5,6 +5,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
+//DTO переносит параметры фильтрации из контроллера в сервис
 public class UserFilter {
 
     private String firstname;

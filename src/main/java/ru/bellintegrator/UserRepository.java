@@ -5,9 +5,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
 
+@Repository
 public interface UserRepository
         extends JpaRepository<UserEntity, UUID> {
 
@@ -31,5 +33,6 @@ public interface UserRepository
             @Param("lastname") String lastname,
             @Param("minAge") Integer minAge,
             @Param("maxAge") Integer maxAge,
-            Pageable pageable);
+            Pageable pageable
+    );
 }
