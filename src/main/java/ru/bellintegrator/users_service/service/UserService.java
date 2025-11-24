@@ -41,7 +41,7 @@ public class UserService {
         return userMapper.toDomainUser(userEntity);
     }
 
-    @Cacheable(value = "users", key = "{#f.firstname, #f.lastname, #f.minAge, #f.maxAge, #f.page, #f.size}")
+    @Cacheable(value = "users", key = "{#f?.firstname, #f?.lastname, #f?.minAge, #f?.maxAge, #f?.page, #f?.size}")
     public Page<UserDto> getAll(UserFilter f) {
         log.info("Fetching user page for filter: {}", f);
 
