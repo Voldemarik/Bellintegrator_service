@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15
+    image: 'postgres:15'
     container_name: user-service-postgres
     environment:
       POSTGRES_DB: users
@@ -25,36 +25,43 @@ services:
       - user-service-network
 
   kafka:
+    # Используем официальный образ Apache Kafka
     image: apache/kafka:3.7.0
     container_name: user-service-kafka
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
+      # --- НАСТРОЙКИ LISTENERS (Верно) ---
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: HOST:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: HOST://0.0.0.0:9092,INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,INTERNAL://kafka:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      # --- ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ KRaft (Рекомендую добавить) ---
+      KAFKA_SERVER_STARTUP_MODE: kraft
+      KAFKA_NODE_ID: 0
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
-
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CLUSTER_ID: "5L6g3nShT-eMCtK--X86sw" # Используйте свой уникальный ID
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-    ports:
-      - "9094:9094"
-    networks:
-      - user-service-network
+      KAFKA_LOG_DIRS: "/tmp/kraft-storage"
 
-  user-service:
+    ports:
+      - "9092:9092" # Для доступа с хоста (IntelliJ)
+      - "29092:29092" # Опционально: Для отладки внутреннего слушателя
+    networks:
+      - user-service-network # Связь с другими контейнерами
+
+
+
+  container:
     build: .
     container_name: user-service-app
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/users
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_CACHE_TYPE: redis

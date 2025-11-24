@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/users
+    username: postgres
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: users-service
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: ru.bellintegrator.users_service.model
+        spring.json.value.default.type: ru.bellintegrator.users_service.model.UserDto
+
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  cache:
+    type: redis
+
+server:
+  port: 8080
+
+logging:
+  level:
+    ru.bellintegrator: info
+    org.springframework.cache: info
+    org.springframework.kafka: info
+    org.springframework.data.redis: info
