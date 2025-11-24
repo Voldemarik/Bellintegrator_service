@@ -3,6 +3,7 @@ package ru.bellintegrator.users_service.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -41,7 +42,7 @@ public class UserService {
         return userMapper.toDomainUser(userEntity);
     }
 
-    @Cacheable(value = "users", key = "{#f.firstname, #f.lastname, #f.minAge, #f.maxAge, #f.page, #f.size}")
+    @Cacheable(value = "users", key = "{#f?.firstname, #f?.lastname, #f?.minAge, #f?.maxAge, #f?.page, #f?.size}")
     public Page<UserDto> getAll(UserFilter f) {
         log.info("Fetching user page for filter: {}", f);
 
@@ -56,14 +57,17 @@ public class UserService {
         return new PageImpl<>(userListDTO, pageable, userEntityPage.getTotalElements());
     }
 
-    @CacheEvict(value = {"user", "users"}, allEntries = true)
+    @CacheEvict(value = "users", allEntries = true)
     public void createUser(UserDto userToCreate) {
         if (userToCreate.getId() != null) throw new IllegalArgumentException("ID must be null for creation");
         kafkaTemplate.send("USER_CREATE", userToCreate);
         log.info("Send CREATE event for user: {}", userToCreate);
     }
 
-    @CacheEvict(value = {"user", "users"}, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "user", key = "#userToUpdate.id"),
+            @CacheEvict(value = "users", allEntries = true)
+    })
     public void updateUser(UserDto userToUpdate) {
         if (userToUpdate.getId() == null) throw new IllegalArgumentException("ID must be not null for update");
         if (!userRepository.existsById(userToUpdate.getId()))
@@ -72,7 +76,10 @@ public class UserService {
         log.info("Send UPDATE event for user ID: {}", userToUpdate.getId());
     }
 
-    @CacheEvict(value = {"user", "users"}, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "user", key = "#id"),
+            @CacheEvict(value = "users", allEntries = true)
+    })
     public void deleteUserById(UUID id) {
        UserEntity entityToDelete = userRepository.findById(id)
                .orElseThrow(() -> new NoSuchElementException("Not found user by id = " + id));
