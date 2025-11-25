@@ -78,19 +78,17 @@ class UserServiceTest {
     }
 
     @Test
-    void getAll_ShouldReturnPageOfUserDtos() {
-        UserFilter filter = new UserFilter("Test", null, null, null, 0, 10);
-        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize());
+    void getAll_ShouldReturnPageOfUserDto() {
+        UserFilter filter = new UserFilter("Test", null, null, null);
+        Pageable pageable = PageRequest.of(0, 10);
 
         List<UserEntity> entityList = List.of(testUserEntity);
         Page<UserEntity> entityPage = new PageImpl<>(entityList, pageable, 1);
 
-        List<UserDto> dtoList = List.of(testUserDto);
-
         when(userRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(entityPage);
         when(userMapper.toDomainUser(testUserEntity)).thenReturn(testUserDto);
 
-        Page<UserDto> resultPage = userService.getAll(filter);
+        Page<UserDto> resultPage = userService.getAll(filter, pageable);
 
         assertNotNull(resultPage);
         assertEquals(1, resultPage.getTotalElements());

@@ -27,7 +27,7 @@ public class EventListener {
     public void handleCreate(UserDto userToCreate) {
         try {
             if (userToCreate.getId() != null) {
-                log.warn("Received CREATE event with ID: {}. Processing skipped.", userToCreate.getId());
+                log.warn("Received CREATE event with ID: {}. Skipping.", userToCreate.getId());
                 return;
             }
             UserEntity newEntity = userMapper.toUserEntity(userToCreate);
@@ -41,25 +41,14 @@ public class EventListener {
 
     @KafkaListener(topics = "USER_UPDATE", groupId = "users-service")
     public void handleUpdate(UserDto userToUpdate) {
-        if (userToUpdate.getId() == null) {
-            log.error("Received UPDATE event without ID. Skipping.");
-            return;
-        }
-
         try {
+            if (userToUpdate.getId() == null) {
+                log.error("Received UPDATE event without ID. Skipping.");
+                return;
+            }
             UserEntity existingEntity = userRepository.findById(userToUpdate.getId())
                     .orElseThrow(() -> new NoSuchElementException("User not found for update via Kafka: " + userToUpdate.getId()));
-
-            if (userToUpdate.getFirstname() != null) {
-                existingEntity.setFirstname(userToUpdate.getFirstname());
-            }
-            if (userToUpdate.getLastname() != null) {
-                existingEntity.setLastname(userToUpdate.getLastname());
-            }
-            if (userToUpdate.getAge() != null) {
-                existingEntity.setAge(userToUpdate.getAge());
-            }
-
+            updateEntity(userToUpdate, existingEntity);
             userRepository.save(existingEntity);
             log.info("User updated successfully with ID: {}", existingEntity.getId());
         } catch (NoSuchElementException e) {
@@ -82,6 +71,18 @@ public class EventListener {
         } catch (Exception e) {
             log.error("Error processing DELETE event for user ID: {}", userToDelete.getId(), e);
             throw e;
+        }
+    }
+
+    private void updateEntity(UserDto userDto, UserEntity entity) {
+        if (userDto.getFirstname() != null) {
+            entity.setFirstname(userDto.getFirstname());
+        }
+        if (userDto.getLastname() != null) {
+            entity.setLastname(userDto.getLastname());
+        }
+        if (userDto.getAge() != null) {
+            entity.setAge(userDto.getAge());
         }
     }
 }

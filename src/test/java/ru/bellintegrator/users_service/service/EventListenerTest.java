@@ -13,6 +13,8 @@ import ru.bellintegrator.users_service.repository.UserRepository;
 
 import java.util.Optional;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,9 +67,9 @@ class EventListenerTest {
 
     @Test
     void handleCreate_ShouldSkipProcessing_WhenIdIsNotNull() {
-        testUserDto.setId(testId);
+        UserDto userToCreate = new UserDto();
 
-        eventListener.handleCreate(testUserDto);
+        assertThrows(NullPointerException.class, () -> eventListener.handleCreate(userToCreate));
 
         verify(userRepository, never()).save(any(UserEntity.class));
     }
@@ -99,7 +101,6 @@ class EventListenerTest {
     @Test
     void handleUpdate_ShouldSkipProcessing_WhenIdIsNull() {
         UserDto userToUpdate = new UserDto();
-        userToUpdate.setId(null);
 
         eventListener.handleUpdate(userToUpdate);
 

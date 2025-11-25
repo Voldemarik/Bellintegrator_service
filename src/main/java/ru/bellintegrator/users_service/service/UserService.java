@@ -13,11 +13,12 @@ import org.springframework.stereotype.Service;
 import ru.bellintegrator.users_service.model.UserDto;
 import ru.bellintegrator.users_service.entity.UserEntity;
 import ru.bellintegrator.users_service.model.UserFilter;
-import ru.bellintegrator.users_service.repository.UserSpecification;
 import ru.bellintegrator.users_service.repository.UserRepository;
 import ru.bellintegrator.users_service.mapper.UserMapper;
 
 import java.util.*;
+
+import static ru.bellintegrator.users_service.repository.UserSpecification.*;
 
 @Slf4j
 @Service
@@ -41,18 +42,14 @@ public class UserService {
         return userMapper.toDomainUser(userEntity);
     }
 
-    @Cacheable(value = "users", key = "{#f?.firstname, #f?.lastname, #f?.minAge, #f?.maxAge, #f?.page, #f?.size}")
-    public Page<UserDto> getAll(UserFilter f) {
+    @Cacheable(value = "users", key = "{#f?.firstname, #f?.lastname, #f?.minAge, #f?.maxAge}")
+    public Page<UserDto> getAll(UserFilter f, Pageable pageable) {
         log.info("Fetching user page for filter: {}", f);
-
-        Specification<UserEntity> spec = UserSpecification.build(f);
-        Pageable pageable = PageRequest.of(f.getPage(), f.getSize());
+        Specification<UserEntity> spec = getSpec(f);
         Page<UserEntity> userEntityPage = userRepository.findAll(spec, pageable);
-
         List<UserDto> userListDTO = userEntityPage.stream()
                 .map(userMapper::toDomainUser)
                 .toList();
-
         return new PageImpl<>(userListDTO, pageable, userEntityPage.getTotalElements());
     }
 
@@ -76,8 +73,13 @@ public class UserService {
     public void deleteUserById(UUID id) {
        UserEntity entityToDelete = userRepository.findById(id)
                .orElseThrow(() -> new NoSuchElementException("Not found user by id = " + id));
-
         kafkaTemplate.send("USER_DELETE", userMapper.toDomainUser(entityToDelete));
         log.info("Send DELETE event for user ID: {}", userMapper.toDomainUser(entityToDelete).getId());
+    }
+
+    private Specification<UserEntity> getSpec(UserFilter f) {
+        return Specification.allOf(nameContains("firstname", f.getFirstname()),
+                nameContains("lastname", f.getLastname()), ageContains(f.getMinAge(), f.getMaxAge())
+        );
     }
 }

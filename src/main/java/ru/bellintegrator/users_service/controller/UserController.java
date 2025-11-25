@@ -3,6 +3,7 @@ package ru.bellintegrator.users_service.controller;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.bellintegrator.users_service.model.UserDto;
@@ -30,9 +31,9 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<UserDto>> getAll(@SpringQueryMap UserFilter filter) {
+    public ResponseEntity<Page<UserDto>> getAll(@SpringQueryMap UserFilter filter, Pageable pageable) {
         log.info("Called getAll with filter = {}", filter);
-        return ResponseEntity.ok().body(userService.getAll(filter));
+        return ResponseEntity.ok().body(userService.getAll(filter, pageable));
     }
 
     @PostMapping

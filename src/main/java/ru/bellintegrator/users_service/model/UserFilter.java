@@ -16,8 +16,8 @@ public class UserFilter {
     private Integer minAge;
     @Nullable
     private Integer maxAge;
-    @NonNull
-    private Integer page = 0;
-    @NonNull
-    private Integer size = 5;
+//    @NonNull
+//    private Integer page = 0;
+//    @NonNull
+//    private Integer size = 5;
 }

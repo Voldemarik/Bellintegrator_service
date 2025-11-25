@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.bellintegrator.users_service.model.UserDto;
@@ -43,39 +44,40 @@ class UserControllerTest {
         }
     }
 
-    private final UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private final UUID testUserId = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private UserDto testUserDto;
 
     @BeforeEach
     void setUp() {
         testUserDto = new UserDto();
-        testUserDto.setId(userId);
-        testUserDto.setFirstname("Ivan");
-        testUserDto.setLastname("Ivanov");
-        testUserDto.setAge(18);
+        testUserDto.setId(testUserId);
+        testUserDto.setFirstname("Test");
+        testUserDto.setLastname("User");
+        testUserDto.setAge(10);
     }
 
     @Test
     void getById_ShouldReturnUserDto_WhenUserExists() throws Exception {
-        when(userService.getUserById(userId)).thenReturn(testUserDto);
+        when(userService.getUserById(testUserId)).thenReturn(testUserDto);
 
-        mockMvc.perform(get("/users/{id}", userId))
+        mockMvc.perform(get("/users/{id}", testUserId))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(userId.toString()))
-                .andExpect(jsonPath("$.firstname").value("Ivan"))
-                .andExpect(jsonPath("$.lastname").value("Ivanov"))
-                .andExpect(jsonPath("$.age").value(18));
+                .andExpect(jsonPath("$.id").value(testUserId.toString()))
+                .andExpect(jsonPath("$.firstname").value("Test"))
+                .andExpect(jsonPath("$.lastname").value("User"))
+                .andExpect(jsonPath("$.age").value(10));
 
-        verify(userService, times(1)).getUserById(userId);
+        verify(userService, times(1)).getUserById(testUserId);
     }
 
     @Test
     void getAll_ShouldReturnPageOfUsers() throws Exception {
         List<UserDto> userList = List.of(testUserDto);
-        Page<UserDto> userPage = new PageImpl<>(userList, PageRequest.of(0, 10), 1);
+        Pageable testPageable = PageRequest.of(0, 10);
+        Page<UserDto> userPage = new PageImpl<>(userList, testPageable, 1);
 
-        when(userService.getAll(any(UserFilter.class))).thenReturn(userPage);
+        when(userService.getAll(any(UserFilter.class), any(Pageable.class))).thenReturn(userPage);
 
         mockMvc.perform(get("/users")
                         .param("page", "0")
@@ -83,12 +85,15 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].id").value(userId.toString()))
-                .andExpect(jsonPath("$.content[0].firstname").value("Ivan"))
-                .andExpect(jsonPath("$.content[0].lastname").value("Ivanov"))
-                .andExpect(jsonPath("$.content[0].age").value(18));
+                .andExpect(jsonPath("$.content[0].id").value(testUserId.toString()))
+                .andExpect(jsonPath("$.content[0].firstname").value("Test"))
+                .andExpect(jsonPath("$.content[0].lastname").value("User"))
+                .andExpect(jsonPath("$.content[0].age").value(10))
+                .andExpect(jsonPath("$.pageable.pageNumber").value(0))
+                .andExpect(jsonPath("$.pageable.pageSize").value(10))
+        ;
 
-        verify(userService, times(1)).getAll(any(UserFilter.class));
+        verify(userService, times(1)).getAll(any(UserFilter.class), any(Pageable.class));
     }
 
     @Test
@@ -110,7 +115,7 @@ class UserControllerTest {
     @Test
     void update_ShouldReturnAccepted() throws Exception {
         UserDto userToUpdate = new UserDto();
-        userToUpdate.setId(userId);
+        userToUpdate.setId(testUserId);
         userToUpdate.setFirstname("UpdatedName");
 
 //        doNothing().when(userService).updateUser(any(UserDto.class));
@@ -125,11 +130,11 @@ class UserControllerTest {
 
     @Test
     void deleteById_ShouldReturnNoContent() throws Exception {
-        doNothing().when(userService).deleteUserById(userId);
+        doNothing().when(userService).deleteUserById(testUserId);
 
-        mockMvc.perform(delete("/users/{id}", userId))
+        mockMvc.perform(delete("/users/{id}", testUserId))
                 .andExpect(status().isNoContent());
 
-        verify(userService, times(1)).deleteUserById(userId);
+        verify(userService, times(1)).deleteUserById(testUserId);
     }
 }
